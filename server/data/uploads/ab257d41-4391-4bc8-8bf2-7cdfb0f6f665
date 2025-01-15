@@ -1,0 +1,30 @@
+#!/bin/bash
+
+function reset {
+    echo "Resetting ufw"
+
+    echo "Disabling ufw"
+    ufw disable
+
+    echo "Flushing iptables"
+    iptables -F
+    iptables -X
+
+    echo "Flushing iptables6"
+    ip6tables -F
+    ip6tables -X
+
+    echo "Running setup-ufw.sh"
+    /opt/ufw-dyndns/setup-static.sh || exit 1
+
+    echo "Running setup-dyndns.sh"
+    /opt/ufw-dyndns/setup-dynamic.sh || exit 1
+
+    exit 0
+}
+
+echo "Running setup-ufw.sh"
+/opt/ufw-dyndns/setup-static.sh || reset
+
+echo "Running setup-dyndns.sh"
+/opt/ufw-dyndns/setup-dynamic.sh || reset
