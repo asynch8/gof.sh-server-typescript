@@ -93,6 +93,17 @@ function removeFileRequest(req: FastifyRequest<{ Body: UploadBody }>): void {
     }
 }
 
+function get(variable: string | string[]): string | string[] {
+    if (Array.isArray(variable) && variable.length === 1) {
+        return variable[0];
+    }
+    return variable;
+}
+
+const arrGet = <T, Y>(variable: T | T[], index: number, defaultValue: Y | null): T | Y | null => {
+    return (Array.isArray(variable) ? variable[index] : variable) ?? defaultValue;
+}
+
 export default function(f: FastifyInstance, opts: object, next: () => void): void {
     f.post<{
         Querystring: UploadQuerystring,
@@ -214,11 +225,11 @@ export default function(f: FastifyInstance, opts: object, next: () => void): voi
                 console.log('Temp file body', { body: req.body, type: typeof req.body, keys: Object.keys(req.body), tempFile });
                 
                 let stat: FileStats | null = null;
-                const publicParam: string | boolean | null = (Array.isArray(req.body.public) ? req.body.public[x] : req.body.public) ?? null;
-                const password = (Array.isArray(req.body.password) ? req.body.password[x] : req.body.password) ?? null;
-                const encrypted = (Array.isArray(req.body.encrypted) ? req.body.encrypted[x] : req.body.encrypted) ?? false;
-                const burnAfterReads = (Array.isArray(req.body.burn_after) ? req.body.burn_after[x] : req.body.burn_after) ?? null;
-                const expiresAt = (Array.isArray(req.body.expires_at) ? req.body.expires_at[x] : req.body.expires_at) ?? null;
+                const publicParam: string | boolean | null = arrGet<string | boolean | string[] | boolean[] | undefined, string | boolean | null>(req.body.public, x, null);
+                const password = arrGet<string | string[] | undefined, string | null>(req.body.password, x, null);
+                const encrypted = arrGet<boolean | boolean[] | undefined, boolean>(req.body.encrypted, x, false);
+                const burnAfterReads = arrGet<number | number[] | undefined, number | null>(req.body.burn_after, x, null);
+                const expiresAt = arrGet<string | string[] | undefined, string | null>(req.body.expires_at, x, null);
                 const customName = (Array.isArray(req.body.customName) ? req.body.customName[x] : req.body.customName) ?? null;
 
                 if (!user) {
