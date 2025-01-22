@@ -5,6 +5,7 @@ import { getFileStream } from '../lib/fsAdapter';
 import { EmptyDirectoryError, FileNotFound, NotSupported, InvalidFileExtension } from '../lib/errors';
 import errorHandler from '../lib/errorHandler';
 import { User } from '../clients/users';
+import logger from '../lib/log';
 
 interface QueryParams {
     password?: string;
@@ -79,7 +80,7 @@ export default function(
             });
         }
 
-        console.log(file);
+        logger.info('Getting content by public name', { file });
         const storedFile = await getContentByPublicName(file);
         
         if (!storedFile) {
@@ -120,7 +121,7 @@ export default function(
             const stream = await getFileStream(storedFile);
             const processed = await handleExtension(storedFile, stream, req);
             
-            console.log('Sending file', { 
+            logger.info('Sending file', { 
                 type: processed.type, 
                 stream: processed.stream 
             });
@@ -133,7 +134,7 @@ export default function(
             
             reply.send(processed.stream);
         } catch (error) {
-            console.error('Error processing file', error);
+            logger.error('Error processing file', error);
             throw error;
         }
     });

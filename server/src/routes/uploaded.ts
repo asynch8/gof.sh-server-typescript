@@ -39,7 +39,6 @@ export default function (f: FastifyInstance, opts: object, next: () => void): vo
             return reply.code(401).send({ statusCode: 401, message: 'Unauthorized' });
         }
 
-        console.log('query', { query: req.query, user: req.user });
         const files = await getContentCreatedBy(req.user.userId, req.query?.prefix, req.query?.only_current);
         //const {token} = generateToken(req.user.id, ['private.images'], '1h');
         

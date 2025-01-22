@@ -3,16 +3,11 @@ import bcrypt from 'bcrypt';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthenticationError } from './errors';
 import { getUserByEmail, insertUser, User } from '../clients/users';
-import { ApiKey, UnregisteredApiKey } from '../clients/apiKeys';
+import { ApiKey } from '../clients/apiKeys';
+import { UnregisteredUser } from '../clients/users';
 
 const saltRounds = 10;
 const SECRET_KEY = process.env.JWT_SECRET || 'your-secret-key';
-
-interface ApiKeyConfig {
-    key: string;
-    permissions: string[];
-    userId: string;
-}
 
 interface JwtPayload {
     permissions: string[];
@@ -44,18 +39,21 @@ const EXPECTED_API_KEY: ApiKey[] = [hardcodedApiKey];
  * Register a new user
  */
 export async function register(
-    user: Omit<User, 'id' | 'created_at' | 'updated_at'>
-): Promise<any> {
+    user: UnregisteredUser
+): Promise<User> {
     const existingUser = await getUserByEmail(user.email);
     if (existingUser) {
-        console.log('User already exists', { existingUser });
         throw new AuthenticationError('User already exists');
     }
+    const hash = await hashPassword(user.password);
     
+    const registeredUser = await insertUser({ ...user, password: hash });
+    return registeredUser;
+}
+
+export async function hashPassword(password: string): Promise<string> {
     const salt = await bcrypt.genSalt(saltRounds);
-    const hash = await bcrypt.hash(user.password, salt);
-    const id = await insertUser({ ...user, password: hash });
-    return id;
+    return await bcrypt.hash(password, salt);
 }
 
 /**
@@ -66,7 +64,6 @@ export async function login(
     password: string
 ): Promise<TokenResponse> {
     const user = await getUserByEmail(email);
-    console.log('user login', user, { email, password });
     
     if (!user || !await bcrypt.compare(password, user.password)) {
         throw new AuthenticationError('Invalid password');
@@ -99,7 +96,6 @@ export function generateToken(
     };
     
     const token = jwt.sign(payload, SECRET_KEY, { expiresIn });
-    console.log(token);
     
     return { token, expiresIn };
 }
@@ -110,30 +106,31 @@ export function generateToken(
  */
 export const validateToken = (requiredPermissions: string[] = []) => {
     return (req: FastifyRequest, res: FastifyReply, next: () => void) => {
-        console.log(requiredPermissions);
-        console.log(req.headers);
+        // console.log('validateToken', { requiredPermissions });
         
         const authHeader = req.headers.authorization;
         
-        if (authHeader) {
-            try {
-                const user = jwt.verify(authHeader, SECRET_KEY) as JwtPayload;
-                console.log({ user, requiredPermissions });
-                
-                if (requiredPermissions.some(p => !user.permissions.includes(p))) {
-                    throw new AuthenticationError('Unauthorized');
-                }
-                
-                (req as any).user = user;
-                (req as any).isAdmin = user.permissions.includes('admin');
-                next();
-            } catch (error) {
-                throw new AuthenticationError('Invalid token');
-            }
-        } else if (requiredPermissions.length === 0) {
-            next();
-        } else {
+        if (requiredPermissions.length > 0 && !authHeader) {
             throw new AuthenticationError('No token provided');
+        } else if (requiredPermissions.length === 0 && !authHeader) {
+            next();
         }
+
+        try {
+            const user = jwt.verify(authHeader as string, SECRET_KEY) as JwtPayload;
+            // console.log({ user, requiredPermissions });
+            
+            if (requiredPermissions.some(p => !user.permissions.includes(p))) {
+                throw new AuthenticationError('Unauthorized');
+            }
+            
+            (req as any).user = user;
+            (req as any).isAdmin = user.permissions.includes('admin');
+            next();
+        } catch (error) {
+            // console.error('validateToken error', error);
+            throw new AuthenticationError('Invalid token');
+        }
+        next();
     };
 }; 

@@ -4,6 +4,7 @@ import * as localModule from './adapters/local';
 import { StorageOption } from 'formzilla';
 import { Readable } from 'stream';
 import { Content } from '../../clients/content';
+import logger from '../log';
 
 export interface FileStats {
     size: number;
@@ -64,7 +65,7 @@ export async function removeFiles(unknownFiles: string | string[]): Promise<void
     const adapter = getFsAdapter();
     const files = Array.isArray(unknownFiles) ? unknownFiles : [unknownFiles];
     for (const f of files) {
-        console.log('Removing file', f);
+        logger.info('Removing file', f);
         await adapter.removeFile(f);
     }
 }

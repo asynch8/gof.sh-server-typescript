@@ -1,4 +1,4 @@
-FROM node:18-bullseye-slim AS build
+FROM node:23-bullseye-slim AS build
 WORKDIR /app
 COPY . /app
 RUN npm install

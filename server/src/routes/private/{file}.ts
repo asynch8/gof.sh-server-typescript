@@ -16,6 +16,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import humanize from 'humanize-plus';
 import { FileInternal } from 'formzilla/FileInternal.js';
+import logger from '../../lib/log';
+import { removeFileRequest } from '../../lib/fileUtils';
+
 
 interface FileUpdateBody {
     start: number;
@@ -30,7 +33,7 @@ interface PutRequestBody {
     public?: boolean | string;
     content_format?: string;
     file?: string | FileInternal | FileInternal[]; // Consider creating a proper type for the uploaded file
-    burn_after?: string;
+    burn_after?: number;
     expire_at?: string;
     [key: string]: any;
 }
@@ -78,13 +81,13 @@ async function handleUpdate(req: FastifyRequest<{
 
         if (fileUpdate) {
             await replacePartInFile(
-                file.path,
+                file.id,
                 fileUpdate.content,
                 fileUpdate.start,
                 fileUpdate.end
             );
             if (fileUpdate.end - fileUpdate.start > fileUpdate.content.length) {
-                const stat = await getFileStats(file.path);
+                const stat = await getFileStats(file.id);
                 file.size = stat.size;
             }
             
@@ -119,29 +122,11 @@ async function handleUpdate(req: FastifyRequest<{
         });
     } catch (error) {
         removeFileRequest(req);
-        console.error('Error updating file', error);
+        logger.error('Error updating file', error);
         reply.code(500).send({ statusCode: 500, message: 'Internal server error' });
     }
 }
 
-function removeFileRequest(req: FastifyRequest & { body: PutRequestBody }): void {
-    if (req.body?.file) {
-        console.log('Removing files', { files: req.body });
-        const files = (Array.isArray(req.body.file) ? req.body.file : [req.body.file])
-            .map(f => typeof f === 'string' ? JSON.parse(f) : f)
-            .map(file => {
-                if (file instanceof FileInternal) {
-                    return file.path;
-                }
-                if (file.filename) {
-                    return Object.values(req.body as Record<string, any>).find(f => f instanceof FileInternal && f.originalName === file.filename)?.path;
-                }
-                throw new Error('Invalid file type');
-                    
-            });
-        removeFiles(files);
-    }
-}
 
 export default function (
     f: FastifyInstance, 
@@ -190,7 +175,7 @@ export default function (
         Params: { '*': string };
     }>, reply: FastifyReply) => {
         try {
-            console.log('Getting file', req.params['*']);
+            logger.info('Getting file', req.params['*']);
             const fileName = req.params['*'].replace(/^\/private\//, '');
             const file = req.user ? 
                 await getContentByNameAndCreator(fileName, req.user.userId) : 
@@ -224,10 +209,12 @@ export default function (
 
             setContentDispostionHeader(reply, file);
             const { type} = await handleExtension(file, stream, req);
+            reply.header('transfer-encoding', 'chunked')
             if (type) {
                 reply.type(type);
             }
             reply.send(stream);
+            return reply;
         } catch (error) {
             console.error('Error getting file', error);
             reply.code(500).send({ statusCode: 500, message: 'Internal server error' });
@@ -251,7 +238,7 @@ export default function (
                     public: { type: ['boolean', 'string'] },
                     content_format: { type: 'string' },
                     file: { type: 'object' },
-                    burn_after: { type: 'string' },
+                    burn_after: { type: 'number' },
                     expire_at: { type: 'string' }
                 }
             }
@@ -298,12 +285,11 @@ export default function (
                 publicName: publicName,
                 encrypted: req.body.encrypted ?? false,
                 contentFormat: req.body.content_format ?? 'text/plain',
-                burnAfter: req.body.burn_after ? parseInt(req.body.burn_after) : 0,
+                burnAfter: req.body.burn_after ? req.body.burn_after : 0,
                 expiresAt: req.body.expire_at ? new Date(req.body.expire_at) : new Date(),
                 contentType: file.contentType,
                 createdBy: req.user.userId,
                 directory: req.body.prefix ?? '',
-                path: destination,
                 size: fileStats.size,
                 password: req.body.password ?? '',
                 deleteKey: '',

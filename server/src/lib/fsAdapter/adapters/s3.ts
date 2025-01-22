@@ -17,14 +17,10 @@ import { makeid } from '../../id';
 import { FileStats } from '../index';
 import * as fs from 'fs';
 import { Content } from "../../../clients/content";
+import logger from '../../log';
 
 const client = new S3Client({ region: config.awsConfig?.region ?? "eu-north-1" });
 const Bucket = config.awsConfig?.s3?.bucket ?? "gof.sh-storage-01";
-
-interface StoredFile {
-    content_type: string;
-    id: string;
-}
 
 export async function replacePartInFile(
     file: string, 
@@ -56,7 +52,7 @@ export async function replacePartInFile(
         Body: newContent,
     });
     const response = await client.send(command);
-    console.log('Replaced part in file', { response });
+    logger.info('Replaced part in file', { response });
     return true;
 }
 
@@ -79,27 +75,26 @@ export async function moveFileToStorage(file: string, name: string): Promise<any
     return await client.send(command);
 }
 
-export async function moveFile(file: string, name: string): Promise<boolean> {
-    console.log('Moving file', { file, name });
+export async function moveFile(source: string, target: string): Promise<boolean> {
+    logger.info('Moving file', { source, target });
     const copyCommand = new CopyObjectCommand({
         Bucket,
-        Key: `${name}`,
-        CopySource: `${Bucket}/${file}`,
+        Key: target,
+        CopySource: `${Bucket}/${source}`,
     });
     await client.send(copyCommand);
-    console.log('Moved file');
-    
+    logger.info('Moved file');
     // Clean up the old file
     const removeCommand = new DeleteObjectCommand({
         Bucket,
-        Key: '/' + file,
+        Key: '/' + source,
     });
     await client.send(removeCommand);
     return true;
 }
 
 export async function getFileStats(filePath: string): Promise<FileStats> {
-    console.log('Getting file stats', { filePath });
+    logger.info('Getting file stats', { filePath });
     const params = {
         Bucket,
         Key: filePath,
@@ -125,15 +120,15 @@ export async function getFileStream(storedFile: Content): Promise<Readable> {
 }
 
 export function getStorageModule(): CallbackStorage {
-    console.log('Getting storage module', { CallbackStorage, type: typeof CallbackStorage });
+    logger.info('Getting storage module', { CallbackStorage, type: typeof CallbackStorage });
     return new CallbackStorage((name: string, stream: Readable, info: any) => {
-        console.log('CallbackStorage', { name, stream, info });
+        logger.info('CallbackStorage', { name, stream, info });
         return new Promise((resolve, reject) => {
             const id = makeid(10);
             const Key = 'temp/' + id;
             const file = new FileInternal(id, info);
             file.path = Key;
-            console.log('Uploading file to S3', { stream });
+            logger.info('Uploading file to S3', { stream });
             
             const passThroughStream = new PassThrough();
             const parallelUploads3 = new Upload({
@@ -152,7 +147,7 @@ export function getStorageModule(): CallbackStorage {
             parallelUploads3.done().then(res => {
                 resolve(file);
             }).catch(err => {
-                console.log('Error uploading file to S3', { err });
+                logger.error('Error uploading file to S3', { err });
                 file.error = err;
                 resolve(file);
             });
@@ -161,19 +156,19 @@ export function getStorageModule(): CallbackStorage {
 }
 
 export async function removeFile(file: string): Promise<boolean> {
-    console.log('Removing file from S3', { file });
+    logger.info('Removing file from S3', { file });
     const params = {    
         Bucket,
         Key: file,
     };
-    console.log('Params', params);
+    logger.info('Params', params);
     const command = new DeleteObjectCommand(params);
     try {
         const response = await client.send(command);
-        console.log('Removed file from S3', { response });
+        logger.info('Removed file from S3', { response });
         return true;
     } catch (e) {
-        console.log('Error removing file from S3', { e, params });
+        logger.error('Error removing file from S3', { e, params });
         return false;
     }
 } 

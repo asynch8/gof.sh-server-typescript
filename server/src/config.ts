@@ -36,7 +36,8 @@ const config: Config = {
   fsConfig: {
     adapterName: process.env.FS_ADAPTER_NAME ?? 'local',
     adapterOptions: process.env.FS_ADAPTER_OPTIONS ?? {
-      root: './data/uploads'
+      root: process.env.UPLOADS_DIR ?? 'data/uploads',
+      tempDir: process.env.TEMP_DIR ?? 'data/temp',
     }
   },
   awsConfig: {
@@ -44,7 +45,7 @@ const config: Config = {
     s3: {
       bucket: process.env.AWS_S3_BUCKET ?? 'gof.sh-storage-01'
     }
-  }
+  },
 };
 
 export default config;

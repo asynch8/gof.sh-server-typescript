@@ -1,5 +1,5 @@
 {
-  "name": "pokemon-api",
+  "name": "gof.sh-api",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -30,8 +30,10 @@
     "@fastify/cors": "^10.0.2",
     "@fastify/swagger": "^9.4.1",
     "@fastify/swagger-ui": "^5.2.1",
+    "@types/adm-zip": "^0.5.7",
     "@types/humanize-plus": "^1.8.2",
     "adm-zip": "^0.5.16",
+    "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "dotenv": "^16.4.5",
     "fastify": "^5.2.1",
@@ -43,7 +45,8 @@
     "sharp": "^0.33.5",
     "sqlite3": "^5.1.7",
     "ts-interface-to-json-schema": "github:asynch8/ts-interface-to-json#b3f7a55f15312208146d79a1d2ea762eef9eaaf2",
-    "uuid": "^11.0.5"
+    "uuid": "^11.0.5",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.2.0",

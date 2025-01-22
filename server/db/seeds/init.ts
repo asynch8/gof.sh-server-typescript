@@ -1,6 +1,18 @@
 import { Knex } from 'knex';
+import { DbUser } from '../../src/clients/users';
+import { hashPassword } from '../../src/lib/authentication';
 
 export async function seed(knex: Knex): Promise<void> {
+  const user: DbUser = {
+    id: 'admin',
+    name: 'admin',
+    email: 'admin@example.com',
+    password: await hashPassword('admin'),
+    permissions: 'admin,create,customName',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+  await knex('users').insert(user);
   /*// Deletes ALL existing entries
   await knex('pokemon').del();
 

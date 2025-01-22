@@ -1,3 +1,4 @@
+import './types/fastify';
 import Fastify, { FastifyError, FastifyInstance } from 'fastify';
 import { Knex } from 'knex';
 import autoLoad from '@fastify/autoload';
@@ -6,11 +7,11 @@ import fastifySwaggerUi from '@fastify/swagger-ui';
 import { instance as dbInstance } from './db';
 import fastifyCors from '@fastify/cors';
 import { join } from 'path';
-import config from './config';
 import formDataParser from "formzilla";
 import { getStorageModule } from './lib/fsAdapter';
 
 import type { Config } from './config';
+import logger from './lib/log';
 let fastify: FastifyInstance | null = null;
 
 export const getInstance = () => fastify;
@@ -21,6 +22,7 @@ export async function start({ host, port, env, publicUrl }: Config): Promise<Fas
       ajv: {
         customOptions: {
           coerceTypes: 'array',
+          allowUnionTypes: true,
           // To make sure that we can use some swagger features, for making the swagger-ui work as intended.
           keywords: ['collectionFormat', 'in']
         }
@@ -120,10 +122,9 @@ export async function start({ host, port, env, publicUrl }: Config): Promise<Fas
     });
 
     await fastify.listen({ host, port });
-    // console.log('Server listening on', response);
     return fastify;
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     process.exit(1);
   }
 }

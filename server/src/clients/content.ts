@@ -6,7 +6,6 @@ export interface ContentDB {
     id: string;
     name: string;
     directory: string;
-    path: string;
     public_name: string;
     content_type: string;
     content_format: string;
@@ -94,7 +93,6 @@ export interface NewContent extends Omit<Content, 'createdAt' | 'updatedAt' | 'v
 export interface ContentUpdateInput extends Partial<Omit<ContentDB, 'expires_at' | 'created_by' | 'created_at' | 'updated_at' | 'file_hash'>> {
     name?: string;
     directory?: string;
-    path?: string;
     publicName?: string;
     contentType?: string;
     contentFormat?: string;

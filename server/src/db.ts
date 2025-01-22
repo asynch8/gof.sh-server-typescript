@@ -1,5 +1,7 @@
 import Knex from 'knex';
 import { up } from '../db/migrations/20240506210104_init_db';
+import { seed } from '../db/seeds/init';
+import logger from './lib/log';
 //import { seed } from '../db/seeds/init';
 let knex: Knex.Knex | null = null;
 
@@ -18,14 +20,18 @@ export async function init(
   const exists = await knex.schema.hasTable('users') && await knex.schema.hasTable('content') && await knex.schema.hasTable('api_keys');
   if (!exists) {
     if (!runMigrations) {
-      console.error('Run migrations first.');
+      logger.error('Run migrations first.');
       process.exit(1);
     }
-    console.debug('Running migrations');
+    logger.debug('Running migrations');
     await up(knex as Knex.Knex);
+  }
+  if (runSeeds) {
+    logger.debug('Running seeds');
+    await seed(knex as Knex.Knex);
   }
 
   return knex;
 }
 
-export const instance = (): Knex.Knex | null => knex;
+export const instance = (): Knex.Knex | null => knex

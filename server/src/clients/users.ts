@@ -81,17 +81,17 @@ export async function insertUser(user: Omit<User, 'id' | 'created_at' | 'updated
 export async function getUser(id: string): Promise<User | null> {
   const knex = await (instance() as Knex);
   
-  const user = await knex
+  const user: DbUser | undefined = await knex
     .select('*')
     .from('users')
     .where('id', id)
     .first();
 
-  return user || null;
+  return user ? dbUserToUser(user) : null;
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   const knex = await (instance() as Knex);
-  const user = await knex.select('*').from('users').where('email', email).first();
-  return user || null;
+  const user: DbUser | undefined = await knex.select('*').from('users').where('email', email).first();
+  return user ? dbUserToUser(user) : null;
 }
