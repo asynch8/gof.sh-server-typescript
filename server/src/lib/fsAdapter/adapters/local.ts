@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import compressing from 'compressing';
+
 import AdmZip from 'adm-zip';
 import {DiscStorage} from 'formzilla/DiscStorage.js';
 import { makeid } from '../../id';
@@ -30,9 +32,8 @@ export async function replacePartInFile(
     return true;
 }
 
-export async function createZip(files: Content[], chunkSize: number = 0): Promise<Buffer> {
-    const zip = new AdmZip();
-
+export async function createZip(files: Content[], chunkSize: number = 0): Promise<Readable> {
+    const zipStream = new compressing.zip.Stream();
     const maxSize = filesizeToBytes(250, 'MB');
     let currentSize = 0;
 
@@ -56,7 +57,7 @@ export async function createZip(files: Content[], chunkSize: number = 0): Promis
         }
         
         try {
-            zip.addLocalFile(subFilePath, '', f.name);
+            zipStream.addEntry(subFilePath);
         } catch (e) {
             logger.error('Unable to add files to zip', e);
             throw e;
@@ -65,7 +66,7 @@ export async function createZip(files: Content[], chunkSize: number = 0): Promis
     }
     
     // zip.writeZip(path.resolve(__dirname, '../../../..', config.fsConfig.adapterOptions.root, 'test.zip'));
-    return zip.toBuffer();
+    return zipStream;
 }
 
 /*export async function getZipBuffer(files: StoredFile[]): Promise<Buffer> {

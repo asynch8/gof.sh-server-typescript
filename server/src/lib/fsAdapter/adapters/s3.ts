@@ -8,6 +8,7 @@ import {
     HeadObjectCommandOutput,
     S3ServiceException
 } from "@aws-sdk/client-s3";
+import compressing from 'compressing';
 import { Upload } from '@aws-sdk/lib-storage';
 import { PassThrough, Readable } from 'stream';
 import config from '../../../config';
@@ -18,9 +19,51 @@ import { FileStats } from '../index';
 import * as fs from 'fs';
 import { Content } from "../../../clients/content";
 import logger from '../../log';
+import { filesizeToBytes } from "../../dehumanize";
+import path from "path";
+import { ReadStream } from 'fs';
 
 const client = new S3Client({ region: config.awsConfig?.region ?? "eu-north-1" });
 const Bucket = config.awsConfig?.s3?.bucket ?? "gof.sh-storage-01";
+
+export async function createZip(files: Content[], chunkSize: number = 0): Promise<Readable> {
+    const zipStream = new compressing.zip.Stream();
+    const maxSize = filesizeToBytes(250, 'MB');
+    let currentSize = 0;
+
+    for (const f of files) {
+        logger.info('Started add', f.name);
+        if (f.contentType === 'text/directory') {
+            logger.info('Skipping directory', f.name);
+            continue;
+        }
+        
+        const subFilePath = path.resolve(__dirname, '../../../..', config.fsConfig.adapterOptions.root, f.id);
+        const stat = fs.statSync(subFilePath, { throwIfNoEntry: false });
+        if (!stat) {
+            logger.error('File not found on disk, skipping adding to zip', f.id);
+            continue;
+        }
+
+        if (currentSize + stat.size > maxSize) {
+            logger.error('File too large, skipping adding to zip', f.id);
+            continue;
+        }
+        
+
+        const fileStream = await getFileStream(f);
+        try {
+            zipStream.addEntry(fileStream as unknown as ReadStream, { relativePath: f.name });
+        } catch (e) {
+            logger.error('Unable to add files to zip', e);
+            throw e;
+        }
+        logger.info('Added files to zip', f.name);
+    }
+    
+    // zip.writeZip(path.resolve(__dirname, '../../../..', config.fsConfig.adapterOptions.root, 'test.zip'));
+    return zipStream;
+}
 
 export async function replacePartInFile(
     file: string, 
